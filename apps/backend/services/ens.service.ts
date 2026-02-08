@@ -9,7 +9,6 @@ export interface ENSProfile {
   url: string | null;
 }
 
-// Well-known whale ENS names (mock mapping for demo)
 const KNOWN_WHALE_ENS: Record<string, string> = {
   "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045": "zaincollier.eth",
   "0x28C6c06298d514Db089934071355E5743bf21d60": "rogeliodudley.eth",

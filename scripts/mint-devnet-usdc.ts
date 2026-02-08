@@ -34,12 +34,12 @@ async function getSepoliaUSDC() {
     console.log("");
     console.log("Usage:");
     console.log(
-      "  bun run scripts/mint-devnet-usdc.ts <wallet-address> [amount]"
+      "  bun run scripts/mint-devnet-usdc.ts <wallet-address> [amount]",
     );
     console.log("");
     console.log("Example:");
     console.log(
-      "  bun run scripts/mint-devnet-usdc.ts 0x742d35Cc...f2bD18 100"
+      "  bun run scripts/mint-devnet-usdc.ts 0x742d35Cc...f2bD18 100",
     );
     process.exit(1);
   }
@@ -53,15 +53,18 @@ async function getSepoliaUSDC() {
   console.log("🚀 Sepolia USDC Token Helper\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("");
-  console.log("ℹ️  Ethereum Sepolia testnet USDC is available via Circle's faucet.");
-  console.log("    This script checks your balance and provides faucet instructions.");
+  console.log(
+    "ℹ️  Ethereum Sepolia testnet USDC is available via Circle's faucet.",
+  );
+  console.log(
+    "    This script checks your balance and provides faucet instructions.",
+  );
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("");
 
   try {
-    const rpcUrl =
-      process.env.ETHEREUM_RPC_URL || "https://rpc.sepolia.org";
+    const rpcUrl = process.env.ETHEREUM_RPC_URL || "https://rpc.sepolia.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
     console.log("🌐 Connecting to Ethereum Sepolia...");
@@ -77,11 +80,15 @@ async function getSepoliaUSDC() {
 
     // Check USDC balance
     console.log("💵 Checking USDC balance...");
-    const usdc = new ethers.Contract(SEPOLIA_USDC_CONTRACT, ERC20_ABI, provider);
+    const usdc = new ethers.Contract(
+      SEPOLIA_USDC_CONTRACT,
+      ERC20_ABI,
+      provider,
+    );
     const usdcBalance = await usdc.balanceOf(recipientAddress);
     const decimals = await usdc.decimals();
     console.log(
-      `   USDC Balance: ${ethers.formatUnits(usdcBalance, decimals)} USDC`
+      `   USDC Balance: ${ethers.formatUnits(usdcBalance, decimals)} USDC`,
     );
     console.log("");
 
@@ -95,9 +102,7 @@ async function getSepoliaUSDC() {
     console.log(`   USDC Contract: ${SEPOLIA_USDC_CONTRACT}`);
     console.log("");
     console.log("🔗 View on Etherscan:");
-    console.log(
-      `   https://sepolia.etherscan.io/address/${recipientAddress}`
-    );
+    console.log(`   https://sepolia.etherscan.io/address/${recipientAddress}`);
     console.log("");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("");
@@ -133,7 +138,9 @@ function showHelp() {
   console.log("");
   console.log("1. Sepolia ETH (for gas fees):");
   console.log("   - Alchemy Faucet: https://sepoliafaucet.com");
-  console.log("   - Google Cloud Faucet: https://cloud.google.com/application/web3/faucet/ethereum/sepolia");
+  console.log(
+    "   - Google Cloud Faucet: https://cloud.google.com/application/web3/faucet/ethereum/sepolia",
+  );
   console.log("   - Infura Faucet: https://www.infura.io/faucet/sepolia");
   console.log("");
   console.log("2. Sepolia USDC (for AI analysis payments):");

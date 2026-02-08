@@ -66,7 +66,6 @@ export interface UniswapAgentAnalysis {
   };
 }
 
-// Mock Uniswap v4 pool addresses (Sepolia)
 const MONITORED_POOLS = [
   {
     address: "0x1234...UniV4Pool1",
@@ -97,13 +96,10 @@ export class UniswapV4Service {
    */
   async getWhaleSwaps(
     walletAddress: string,
-    limit: number = 5
+    limit: number = 5,
   ): Promise<UniswapWhaleSwap[]> {
-    console.log(
-      `🦄 Uniswap v4: Fetching whale swaps for ${walletAddress}...`
-    );
+    console.log(`🦄 Uniswap v4: Fetching whale swaps for ${walletAddress}...`);
 
-    // Mock whale swaps data for demo
     const swaps: UniswapWhaleSwap[] = [];
     const pools = ["WETH/USDC", "WETH/USDT", "WETH/DAI"];
     const hookNames = [
@@ -118,23 +114,18 @@ export class UniswapV4Service {
       const isBuy = Math.random() > 0.5;
       const ethAmount = Math.floor(Math.random() * 4500) + 500;
       const ethPrice = 3200 + Math.random() * 200 - 100;
-      const hookName =
-        hookNames[Math.floor(Math.random() * hookNames.length)];
+      const hookName = hookNames[Math.floor(Math.random() * hookNames.length)];
 
       swaps.push({
         txHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`,
         pool,
         tokenIn: isBuy ? "USDC" : "WETH",
         tokenOut: isBuy ? "WETH" : "USDC",
-        amountIn: isBuy
-          ? Math.round(ethAmount * ethPrice)
-          : ethAmount,
-        amountOut: isBuy
-          ? ethAmount
-          : Math.round(ethAmount * ethPrice),
+        amountIn: isBuy ? Math.round(ethAmount * ethPrice) : ethAmount,
+        amountOut: isBuy ? ethAmount : Math.round(ethAmount * ethPrice),
         priceImpact: parseFloat((Math.random() * 2 + 0.1).toFixed(2)),
         timestamp: new Date(
-          Date.now() - (i + 1) * Math.floor(Math.random() * 86400000)
+          Date.now() - (i + 1) * Math.floor(Math.random() * 86400000),
         ),
         walletAddress,
         hookAddress: hookName
@@ -152,10 +143,10 @@ export class UniswapV4Service {
    * Get liquidity events for a whale on Uniswap v4
    */
   async getLiquidityEvents(
-    walletAddress: string
+    walletAddress: string,
   ): Promise<UniswapLiquidityEvent[]> {
     console.log(
-      `🦄 Uniswap v4: Fetching liquidity events for ${walletAddress}...`
+      `🦄 Uniswap v4: Fetching liquidity events for ${walletAddress}...`,
     );
 
     const events: UniswapLiquidityEvent[] = [];
@@ -170,7 +161,7 @@ export class UniswapV4Service {
         tickUpper: 887220 - Math.floor(Math.random() * 1000),
         walletAddress,
         timestamp: new Date(
-          Date.now() - (i + 1) * Math.floor(Math.random() * 172800000)
+          Date.now() - (i + 1) * Math.floor(Math.random() * 172800000),
         ),
       });
     }
@@ -183,11 +174,9 @@ export class UniswapV4Service {
    */
   async analyzeWhaleUniswapActivity(
     walletAddress: string,
-    ethPrice: number
+    ethPrice: number,
   ): Promise<UniswapAgentAnalysis> {
-    console.log(
-      `🦄 Uniswap v4 Agent: Analyzing whale DeFi activity...`
-    );
+    console.log(`🦄 Uniswap v4 Agent: Analyzing whale DeFi activity...`);
 
     const swaps = await this.getWhaleSwaps(walletAddress);
     const liquidityEvents = await this.getLiquidityEvents(walletAddress);
@@ -201,21 +190,22 @@ export class UniswapV4Service {
       swaps.reduce((sum, s) => sum + s.priceImpact, 0) / swaps.length;
 
     const hooksUsed = swaps.filter((s) => s.hookAddress);
-    const hookAnalysis = hooksUsed.length > 0
-      ? {
-          hookAddress: hooksUsed[0]!.hookAddress!,
-          hookType: hooksUsed[0]!.hookName || "Custom Hook",
-          description: `Whale is using v4 Hooks for advanced execution. ${hooksUsed[0]!.hookName || "Custom Hook"} detected in ${hooksUsed.length}/${swaps.length} swaps.`,
-          riskLevel: "medium" as const,
-        }
-      : undefined;
+    const hookAnalysis =
+      hooksUsed.length > 0
+        ? {
+            hookAddress: hooksUsed[0]!.hookAddress!,
+            hookType: hooksUsed[0]!.hookName || "Custom Hook",
+            description: `Whale is using v4 Hooks for advanced execution. ${hooksUsed[0]!.hookName || "Custom Hook"} detected in ${hooksUsed.length}/${swaps.length} swaps.`,
+            riskLevel: "medium" as const,
+          }
+        : undefined;
 
     const poolHealth: "healthy" | "warning" | "critical" =
       avgPriceImpact < 0.5
         ? "healthy"
         : avgPriceImpact < 1.5
-        ? "warning"
-        : "critical";
+          ? "warning"
+          : "critical";
 
     const reasoning: string[] = [];
     let action = "";
@@ -223,30 +213,31 @@ export class UniswapV4Service {
 
     if (totalSwapVolume > 10_000_000) {
       reasoning.push(
-        `High swap volume ($${(totalSwapVolume / 1_000_000).toFixed(1)}M) indicates active positioning`
+        `High swap volume ($${(totalSwapVolume / 1_000_000).toFixed(1)}M) indicates active positioning`,
       );
       confidence += 5;
     }
 
     const netLiquidity = liquidityEvents.reduce(
       (sum, e) => sum + (e.type === "add" ? e.amount0 : -e.amount0),
-      0
+      0,
     );
     if (netLiquidity > 0) {
       reasoning.push(
-        `Net liquidity addition of ${netLiquidity} ETH suggests confidence in pool`
+        `Net liquidity addition of ${netLiquidity} ETH suggests confidence in pool`,
       );
-      action = "Whale is accumulating — consider following with smaller position";
+      action =
+        "Whale is accumulating — consider following with smaller position";
     } else {
       reasoning.push(
-        `Net liquidity removal of ${Math.abs(netLiquidity)} ETH signals potential exit`
+        `Net liquidity removal of ${Math.abs(netLiquidity)} ETH signals potential exit`,
       );
       action = "Whale reducing exposure — exercise caution";
     }
 
     if (hookAnalysis) {
       reasoning.push(
-        `Using Uniswap v4 Hooks (${hookAnalysis.hookType}) for sophisticated execution`
+        `Using Uniswap v4 Hooks (${hookAnalysis.hookType}) for sophisticated execution`,
       );
       confidence += 3;
     }

@@ -143,7 +143,8 @@ export class EtherscanHistoryService {
         year: date.getFullYear(),
         action,
         amount,
-        exchange: exchanges[Math.floor(Math.random() * exchanges.length)] || "Binance",
+        exchange:
+          exchanges[Math.floor(Math.random() * exchanges.length)] || "Binance",
         priceImpact: `${priceChange > 0 ? "+" : ""}${priceChange.toFixed(1)}%`,
         priceChange: Math.abs(priceChange),
         timeframe: `${timeframe}h`,
