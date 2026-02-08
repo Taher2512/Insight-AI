@@ -33,7 +33,7 @@ The AI agent operates with full autonomy — it evaluates oracle confidence, cal
 
 ## 📹 Demo Video
 
-[![Watch Demo](https://youtu.be/gxOrc7xftgk)
+[![Watch Demo](https://img.shields.io/badge/▶️_Watch-Demo_Video-FF0000?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=gxOrc7xftgk)
 
 ## 🚀 Try It Now
 
