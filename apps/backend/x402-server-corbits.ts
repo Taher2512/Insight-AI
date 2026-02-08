@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
-import { getChainlinkService } from "./services/chainlink.service.js";
+import { express as faremeter } from "@faremeter/middleware";
+import { solana } from "@faremeter/info";
+import { getSwitchboardService } from "./services/switchboard.service.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -15,15 +17,56 @@ app.use(express.json());
 async function createPaywallMiddlewares() {
   const baseURL = `http://localhost:${PORT}`;
 
-  // Ethereum x402 payment middleware placeholder
-  // In production, use ERC-20 USDC payment verification on Ethereum
-  console.log("ℹ️ x402 Ethereum payment middleware initialized");
+  const historicalMiddleware = await faremeter.createMiddleware({
+    facilitatorURL: "https://facilitator.corbits.dev",
+    accepts: [
+      {
+        ...solana.x402Exact({
+          network: "devnet",
+          asset: "USDC",
+          amount: 500000,
+          payTo: RECIPIENT_WALLET,
+        }),
+        resource: `${baseURL}/api/x402/historical-patterns`,
+        description: "Historical whale behavior patterns and trade outcomes",
+      },
+    ],
+  });
 
-  return {
-    historicalMiddleware: null,
-    sentimentMiddleware: null,
-    marketImpactMiddleware: null,
-  };
+  const sentimentMiddleware = await faremeter.createMiddleware({
+    facilitatorURL: "https://facilitator.corbits.dev",
+    accepts: [
+      {
+        ...solana.x402Exact({
+          network: "devnet",
+          asset: "USDC",
+          amount: 300000,
+          payTo: RECIPIENT_WALLET,
+        }),
+        resource: `${baseURL}/api/x402/sentiment-analysis`,
+        description: "Social sentiment from Twitter, Reddit, crypto forums",
+      },
+    ],
+  });
+
+  const marketImpactMiddleware = await faremeter.createMiddleware({
+    facilitatorURL: "https://facilitator.corbits.dev",
+    accepts: [
+      {
+        ...solana.x402Exact({
+          network: "devnet",
+          asset: "USDC",
+          amount: 400000,
+          payTo: RECIPIENT_WALLET,
+        }),
+        resource: `${baseURL}/api/x402/market-impact`,
+        description:
+          "Liquidity analysis and execution impact with Switchboard oracle prices",
+      },
+    ],
+  });
+
+  return { historicalMiddleware, sentimentMiddleware, marketImpactMiddleware };
 }
 
 let middlewares: any = {};
@@ -84,7 +127,7 @@ app.get(
     };
 
     console.log(
-      `✅ Served historical-patterns data (x402 payment verified)`
+      `✅ Served historical-patterns data (x402 payment verified by Corbits)`
     );
     return res.json(data);
   }
@@ -108,14 +151,14 @@ app.get(
           score: 68,
           volume: "12.4K mentions",
           trending: true,
-          topInfluencers: ["@cryptowhale", "@ethereum", "@defi_analyst"],
+          topInfluencers: ["@cryptowhale", "@solanadev", "@defi_analyst"],
         },
         reddit: {
           sentiment: "Mixed",
           score: 52,
           hotThreads: 3,
           totalComments: 847,
-          subreddits: ["r/ethereum", "r/cryptocurrency", "r/defi"],
+          subreddits: ["r/solana", "r/cryptocurrency", "r/defi"],
         },
         forums: {
           sentiment: "Neutral",
@@ -132,7 +175,7 @@ app.get(
     };
 
     console.log(
-      `✅ Served sentiment-analysis data (x402 payment verified)`
+      `✅ Served sentiment-analysis data (x402 payment verified by Corbits)`
     );
     return res.json(data);
   }
@@ -147,18 +190,18 @@ app.get(
     next();
   },
   async (req: Request, res: Response) => {
-    const chainlink = getChainlinkService();
-    const oraclePrice = await chainlink.getEthPrice();
+    const switchboard = getSwitchboardService();
+    const oraclePrice = await switchboard.getSolPrice();
 
     console.log(
-      `📡 Using Chainlink oracle price: $${oraclePrice.price.toFixed(2)} (confidence: ${oraclePrice.confidence.toFixed(1)}%)`
+      `📡 Using Switchboard oracle price: $${oraclePrice.price.toFixed(2)} (confidence: ${oraclePrice.confidence.toFixed(1)}%)`
     );
 
     const data = {
       endpoint: "market-impact",
       whaleAddress: req.query.address || "Unknown",
       oracleData: {
-        source: "Chainlink",
+        source: "Switchboard",
         price: oraclePrice.price,
         confidence: oraclePrice.confidence,
         oracleCount: oraclePrice.oracleCount,
@@ -179,24 +222,24 @@ app.get(
         },
         executionAnalysis: {
           smallOrder: {
-            size: "100 ETH",
+            size: "5000 SOL",
             estimatedSlippage: "0.12%",
             impact: "Negligible",
           },
           mediumOrder: {
-            size: "500 ETH",
+            size: "20000 SOL",
             estimatedSlippage: "0.45%",
             impact: "Low",
           },
           largeOrder: {
-            size: "2000 ETH",
+            size: "50000 SOL",
             estimatedSlippage: "1.8%",
             impact: "Moderate",
           },
         },
         recommendation: {
           bestExecution: "TWAP over 2-4 hours",
-          optimalSize: "500-1000 ETH per trade",
+          optimalSize: "15000-25000 SOL per trade",
           riskLevel: "Medium",
         },
         confidence: "81%",
@@ -204,7 +247,7 @@ app.get(
     };
 
     console.log(
-      `✅ Served market-impact data (x402 payment verified)`
+      `✅ Served market-impact data (x402 payment verified by Corbits)`
     );
     return res.json(data);
   }
@@ -214,34 +257,34 @@ app.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "ok",
     service: "x402-api",
-    protocol: "x402",
-    network: "ethereum-sepolia",
+    protocol: "Corbits x402",
+    network: "solana-devnet",
     recipient: RECIPIENT_WALLET,
   });
 });
 
 export async function startX402Server() {
-  console.log("⏳ Initializing x402 payment middleware...");
+  console.log("⏳ Initializing Corbits x402 payment middleware...");
 
   try {
     middlewares = await createPaywallMiddlewares();
-    console.log("✅ x402 middleware initialized");
+    console.log("✅ Corbits x402 middleware initialized");
   } catch (error) {
-    console.error("⚠️ Failed to initialize x402 middleware:", error);
+    console.error("⚠️ Failed to initialize Corbits middleware:", error);
     console.log("⚠️ Server will start without x402 payments");
   }
 
   app.listen(PORT, () => {
     console.log(`🔌 x402 API server running on port ${PORT}`);
     console.log(`💰 Recipient wallet: ${RECIPIENT_WALLET || "NOT SET"}`);
-    console.log(`🌐 Network: Ethereum Sepolia`);
-    console.log(`📡 Protocol: x402 (USDC micropayments on Ethereum)`);
+    console.log(`🌐 Network: Solana Devnet`);
+    console.log(`📡 Protocol: Corbits x402 (Faremeter)`);
     console.log("");
     console.log("Available endpoints:");
-    console.log(`  GET /api/x402/historical-patterns (0.0013 USDC)`);
-    console.log(`  GET /api/x402/sentiment-analysis (0.0012 USDC)`);
-    console.log(`  GET /api/x402/market-impact (0.0012 USDC)`);
+    console.log(`  GET /api/x402/historical-patterns (0.05 SOL)`);
+    console.log(`  GET /api/x402/sentiment-analysis (0.03 SOL)`);
+    console.log(`  GET /api/x402/market-impact (0.04 SOL)`);
     console.log("");
-    console.log("💳 Payments verified on Ethereum");
+    console.log("💳 Payments automatically handled by Corbits facilitator");
   });
 }
