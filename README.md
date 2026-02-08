@@ -31,6 +31,16 @@ The AI agent operates with full autonomy — it evaluates oracle confidence, cal
 
 ---
 
+## 📹 Demo Video
+
+[![Watch Demo](https://youtu.be/gxOrc7xftgk)
+
+## 🚀 Try It Now
+
+**Telegram Bot:** [Start Chatting](https://web.telegram.org/a/#8476303612)
+
+---
+
 ## Hackathon Tracks
 
 | Track                         | Sponsor            | What We Built                                                                                                                                                               |
