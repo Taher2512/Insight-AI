@@ -15,13 +15,14 @@ import {
   getTrackedWhales,
   markAlertAnalyzed,
 } from "./services/whale.service.js";
-import { formatAddress, getSolscanUrl } from "./utils/solana.js";
+import { formatAddress, getEtherscanUrl } from "./utils/ethereum.js";
+import { getENSService } from "./services/ens.service.js";
 
 dotenv.config();
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MINIMUM_ANALYSIS_COST = parseFloat(
-  process.env.MINIMUM_ANALYSIS_COST_SOL || "0.15",
+  process.env.MINIMUM_ANALYSIS_COST_ETH || "0.15",
 );
 const WHALE_ALERT_INTERVAL = parseInt(
   process.env.WHALE_ALERT_INTERVAL_MS || "150000",
@@ -47,8 +48,8 @@ async function streamAnalysisProgress(
 
     const steps = [
       {
-        title: "Fetching Switchboard oracle data...",
-        detail: `SOL: $168.42, Volatility: 6.2% (HIGH)`,
+        title: "Fetching Chainlink oracle data...",
+        detail: `ETH: $3,842.50, Volatility: 6.2% (HIGH)`,
         cost: 0,
       },
       {
@@ -62,7 +63,7 @@ async function streamAnalysisProgress(
         cost: 0,
       },
       {
-        title: `Paying 0.0014 USDC → Old Faithful Analysis API`,
+        title: `Paying 0.0014 USDC → Etherscan Analysis API`,
         detail: "",
         cost: 0.0014,
       },
@@ -100,11 +101,11 @@ async function streamAnalysisProgress(
       for (let j = 0; j < steps.length; j++) {
         const s = steps[j];
         if (j < i) {
-          built += `[✓] ${s.title}\n    ${s.detail}\n\n`;
+          built += `[✓] ${s?.title}\n    ${s?.detail}\n\n`;
         } else if (j === i && !finished) {
-          built += `[⏳] ${s.title}\n    ${s.detail}\n\n`;
+          built += `[⏳] ${s?.title}\n    ${s?.detail}\n\n`;
         } else {
-          built += `[ ] ${s.title}\n    ${s.detail}\n\n`;
+          built += `[ ] ${s?.title}\n    ${s?.detail}\n\n`;
         }
       }
 
@@ -142,21 +143,21 @@ async function streamAnalysisProgress(
       report?.costBreakdown?.totalCharged || totalAPIcost + agentFee;
 
     let finalText = "🤖 Agent Working...\n\n";
-    finalText += `[✓] Fetching Switchboard oracle data...\n    SOL: $168.42, Volatility: 6.2% (HIGH)\n\n`;
+    finalText += `[✓] Fetching Chainlink oracle data...\n    ETH: $3,842.50, Volatility: 6.2% (HIGH)\n\n`;
     finalText += `[✓] Scraping web for context...\n    Found 3 similar patterns in past 6 months\n\n`;
     finalText += `[✓] Agent deciding which data to purchase...\n    Decision: High volatility = full analysis needed\n\n`;
 
     for (const apiName of apis.length > 0
       ? apis
       : [
-          "old-faithful-analysis",
+          "etherscan-analysis",
           "historical-patterns",
           "sentiment-analysis",
           "market-impact",
         ]) {
       const cost =
         costPerAPI[apiName] ??
-        (apiName === "old-faithful-analysis"
+        (apiName === "etherscan-analysis"
           ? 0.0014
           : apiName === "historical-patterns"
             ? 0.0013
@@ -184,9 +185,9 @@ async function streamAnalysisProgress(
 bot.command("start", async (ctx) => {
   try {
     const welcomeMessage = `
-🤖 *Welcome to Solana Whale Tracker Bot!* 
+🤖 *Welcome to Ethereum Whale Tracker Bot!* 
 
-I help you track large Solana whale transactions in real-time and get AI-powered analysis.
+I help you track large Ethereum whale transactions in real-time and get AI-powered analysis.
 
 🎯 *InsightAI Stats:*
 
@@ -199,30 +200,37 @@ I help you track large Solana whale transactions in real-time and get AI-powered
 Join the smart money 🚀
 
 *What I can do:*
-• 🏦 Create and manage your Solana wallet
+• 🏦 Create and manage your Ethereum wallet
 • 🐋 Track 10 major whale addresses
 • 📊 Send real-time whale alerts
 • 🧠 Provide AI analysis for whale movements (powered by Google Gemini)
+• 🔖 ENS name resolution for whale identities
+• 📡 Chainlink oracle price feeds
+• 🔄 Uniswap v4 DeFi insights
+• 🌉 LI.FI cross-chain analytics
 
 *How it works:*
 1. Create your wallet with /wallet
-2. Deposit USDC (~0.1 USDC) + SOL (0.05 for fees)
+2. Deposit USDC (~0.1 USDC) + ETH (0.005 for fees)
 3. Receive whale alerts automatically
-4. Click "Get AI Analysis" on any alert (costs ~0.025 USDC via Corbits x402)
+4. Click "Get AI Analysis" on any alert (costs ~0.025 USDC via x402)
 
 *Technology Stack:*
-• Solana blockchain
-• Switchboard oracle (price verification)
-• Corbits x402 protocol (USDC micropayments)
+• Ethereum blockchain (Sepolia testnet)
+• Chainlink oracle (price verification)
+• x402 protocol (USDC micropayments)
+• ENS (whale identity resolution)
+• Uniswap v4 (DeFi analytics)
+• LI.FI (cross-chain insights)
 • Google Gemini AI (whale analysis)
 
 *Available Commands:*
 /wallet - Create or view your wallet
-/balance - Check SOL and USDC balance
+/balance - Check ETH and USDC balance
 /deposit - Get deposit instructions
 /track - View tracked whale addresses
 /alerts - See recent whale alerts
-/oracle - View Switchboard oracle prices
+/oracle - View Chainlink oracle prices
 /asset - View tracked assets with live prices
 /agent - View AI agent performance
 /help - Show this help message
@@ -247,7 +255,7 @@ bot.command("wallet", async (ctx) => {
     const result = await createWallet(telegramId, username);
 
     if (result.isNew) {
-      const solscanUrl = getSolscanUrl(result.publicKey);
+      const etherscanUrl = getEtherscanUrl(result.publicKey);
 
       const message = `
 ✅ *New Wallet Created!*
@@ -255,18 +263,18 @@ bot.command("wallet", async (ctx) => {
 *Public Address:*
 \`${result.publicKey}\`
 
-*Balance:* ${result.balance} SOL
+*Balance:* ${result.balance} ETH
 
-🔗 [View on Solscan](${solscanUrl})
+🔗 [View on Etherscan](${etherscanUrl})
 
 ⚠️ *Important:*
-• This is a DEVNET wallet (for testing)
+• This is a Sepolia testnet wallet (for testing)
 • Save your public address
 • Deposit USDC for AI analysis (1.2 USDC per analysis)
-• Deposit SOL for transaction fees
+• Deposit ETH for transaction fees
 • Use /deposit for deposit instructions
 
-💡 Use /balance to check your USDC and SOL balances anytime.
+💡 Use /balance to check your USDC and ETH balances anytime.
       `;
 
       await ctx.reply(message, {
@@ -275,7 +283,7 @@ bot.command("wallet", async (ctx) => {
       });
     } else {
       const updatedBalance = await updateWalletBalance(result.publicKey);
-      const solscanUrl = getSolscanUrl(result.publicKey);
+      const etherscanUrl = getEtherscanUrl(result.publicKey);
 
       const message = `
 👛 *Your Existing Wallet*
@@ -283,9 +291,9 @@ bot.command("wallet", async (ctx) => {
 *Public Address:*
 \`${result.publicKey}\`
 
-*Balance:* ${updatedBalance.toFixed(4)} SOL
+*Balance:* ${updatedBalance.toFixed(4)} ETH
 
-🔗 [View on Solscan](${solscanUrl})
+🔗 [View on Etherscan](${etherscanUrl})
 
 💡 Use /balance to refresh your balance.
       `;
@@ -317,7 +325,7 @@ bot.command("balance", async (ctx) => {
 
     const balance = await updateWalletBalance(wallet.publicKey);
     const usdcBalance = await getWalletUSDCBalance(wallet.publicKey);
-    const solscanUrl = getSolscanUrl(wallet.publicKey);
+    const etherscanUrl = getEtherscanUrl(wallet.publicKey);
 
     const MINIMUM_USDC = parseFloat(
       process.env.MINIMUM_ANALYSIS_COST_USDC || "0.025",
@@ -328,10 +336,10 @@ bot.command("balance", async (ctx) => {
 
 *Address:* \`${wallet.publicKey}\`
 
-*SOL Balance:* ${balance.toFixed(4)} SOL
+*ETH Balance:* ${balance.toFixed(4)} ETH
 *USDC Balance:* ${usdcBalance.toFixed(2)} USDC
 
-🔗 [View on Solscan](${solscanUrl})
+🔗 [View on Etherscan](${etherscanUrl})
 
 ${
   usdcBalance < MINIMUM_USDC
@@ -340,9 +348,9 @@ ${
 }
 
 ${
-  balance < 0.01
-    ? `⚠️ Low SOL balance. You need SOL for transaction fees.`
-    : `✅ Sufficient SOL for transaction fees.`
+  balance < 0.001
+    ? `⚠️ Low ETH balance. You need ETH for transaction fees.`
+    : `✅ Sufficient ETH for transaction fees.`
 }
     `;
 
@@ -368,10 +376,10 @@ bot.command("deposit", async (ctx) => {
       return;
     }
 
-    const solscanUrl = getSolscanUrl(wallet.publicKey);
-    const USDC_MINT =
-      process.env.DEVNET_USDC_MINT ||
-      "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+    const etherscanUrl = getEtherscanUrl(wallet.publicKey);
+    const USDC_CONTRACT =
+      process.env.SEPOLIA_USDC_CONTRACT ||
+      "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
 
     const message = `
 💳 *Deposit Instructions*
@@ -379,24 +387,24 @@ bot.command("deposit", async (ctx) => {
 *Your Wallet Address:*
 \`${wallet.publicKey}\`
 
-*Network:* Solana Devnet
+*Network:* Ethereum Sepolia Testnet
 
 *For AI Analysis (Required):*
-• Send devnet USDC to your wallet
+• Send Sepolia USDC to your wallet
 • Minimum: 0.1 USDC (~4 analyses)
-• USDC Mint: \`${USDC_MINT}\`
+• USDC Contract: \`${USDC_CONTRACT}\`
 
 *For Transaction Fees:*
-• Send devnet SOL to your wallet
-• Minimum: 0.05 SOL
-• Get from: https://faucet.solana.com
+• Send Sepolia ETH to your wallet
+• Minimum: 0.005 ETH
+• Get from: https://sepoliafaucet.com
 
-*How to get devnet USDC:*
+*How to get Sepolia USDC:*
 1. Transfer from another wallet
-2. Use \`spl-token transfer\` command
+2. Use a Sepolia USDC faucet
 3. Ask in hackathon Discord
 
-🔗 [View on Solscan](${solscanUrl})
+🔗 [View on Etherscan](${etherscanUrl})
 
 💡 Use /balance to check when your deposit arrives.
     `;
@@ -416,14 +424,18 @@ bot.command("deposit", async (ctx) => {
 bot.command("track", async (ctx) => {
   try {
     const whales = getTrackedWhales();
+    const ensService = getENSService();
 
     let message = "🐋 *Tracked Whale Addresses*\n\n";
     message += "Currently monitoring these 10 whale addresses:\n\n";
 
-    whales.forEach((address, index) => {
+    for (let index = 0; index < whales.length; index++) {
+      const address = whales[index]!;
       const formatted = formatAddress(address);
-      message += `${index + 1}. \`${formatted}\`\n`;
-    });
+      const profile = await ensService.resolveAddress(address);
+      const ensLabel = profile.ensName ? ` (${profile.ensName})` : "";
+      message += `${index + 1}. \`${formatted}\`${ensLabel}\n`;
+    }
 
     message +=
       "\n💡 You'll receive alerts when these whales make large transactions.";
@@ -453,7 +465,7 @@ bot.command("alerts", async (ctx) => {
         (Date.now() - alert.timestamp.getTime()) / 60000,
       );
       const timeStr = timeDiff < 1 ? "Just now" : `${timeDiff} min ago`;
-      const value = (alert.amount * 150).toLocaleString(); // Estimated value
+      const value = (alert.amount * 150).toLocaleString();
 
       message += `━━━━━━━━━━━━━━━━\n`;
       message += `📍 ${formatAddress(alert.walletAddress)}\n`;
@@ -476,25 +488,17 @@ bot.command("alerts", async (ctx) => {
 
 bot.command("oracle", async (ctx) => {
   try {
-    await ctx.reply("📡 Querying Switchboard oracle network...");
+    await ctx.reply("📡 Querying Chainlink oracle network...");
 
-    const { getSwitchboardService } =
-      await import("./services/switchboard.service.js");
-    const switchboard = getSwitchboardService();
+    const { getChainlinkService } =
+      await import("./services/chainlink.service.js");
+    const chainlink = getChainlinkService();
 
-    const prices = await switchboard.getAllPrices();
+    const prices = await chainlink.getAllPrices();
 
     const oracleMessage = `
-📡 *SWITCHBOARD ORACLE PRICES*
+📡 *CHAINLINK ORACLE PRICES*
 _Decentralized, On-Chain Verified_
-
-━━━━━━━━━━━━━━━━
-*SOL/USD*
-💰 Price: $${prices.sol.price.toFixed(2)}
-✅ Confidence: ${prices.sol.confidence.toFixed(1)}%
-🔗 Oracles: ${prices.sol.oracleCount} nodes
-📊 Variance: ±$${prices.sol.variance.toFixed(2)}
-⏰ Age: ${prices.sol.staleness}s
 
 ━━━━━━━━━━━━━━━━
 *ETH/USD*
@@ -513,7 +517,15 @@ _Decentralized, On-Chain Verified_
 ⏰ Age: ${prices.btc.staleness}s
 
 ━━━━━━━━━━━━━━━━
-_All prices verified by Switchboard decentralized oracle network_
+*LINK/USD*
+💰 Price: $${prices.link.price.toFixed(2)}
+✅ Confidence: ${prices.link.confidence.toFixed(1)}%
+🔗 Oracles: ${prices.link.oracleCount} nodes
+📊 Variance: ±$${prices.link.variance.toFixed(2)}
+⏰ Age: ${prices.link.staleness}s
+
+━━━━━━━━━━━━━━━━
+_All prices verified by Chainlink decentralized oracle network_
     `;
 
     await ctx.reply(oracleMessage, { parse_mode: "Markdown" });
@@ -525,26 +537,31 @@ _All prices verified by Switchboard decentralized oracle network_
 
 bot.command("asset", async (ctx) => {
   try {
-    await ctx.reply("📊 Fetching asset data from Switchboard oracle...");
+    await ctx.reply("📊 Fetching asset data from Chainlink oracle...");
 
-    const { getSwitchboardService } =
-      await import("./services/switchboard.service.js");
-    const switchboard = getSwitchboardService();
+    const { getChainlinkService } =
+      await import("./services/chainlink.service.js");
+    const chainlink = getChainlinkService();
 
-    const prices = await switchboard.getAllPrices();
+    const prices = await chainlink.getAllPrices();
 
     const assetMessage = `
 📊 *TRACKED ASSETS*
 
 *Currently Active:*
-✅ SOL (15 whales tracked)
-✅ ETH (Coming Soon - 8 whales identified)
+✅ ETH (10 whales tracked)
 ✅ BTC (Coming Soon - 12 whales identified)
+✅ LINK (Coming Soon - 8 whales identified)
 
-*Switchboard Integration:*
-• SOL/USD: $${prices.sol.price.toFixed(2)} (live)
-• ETH/USD: $${prices.eth.price.toFixed(2)} (ready)
+*Chainlink Integration:*
+• ETH/USD: $${prices.eth.price.toFixed(2)} (live)
 • BTC/USD: $${prices.btc.price.toFixed(2)} (ready)
+• LINK/USD: $${prices.link.price.toFixed(2)} (ready)
+
+*DeFi Integrations:*
+• Uniswap v4: Pool analytics & liquidity insights
+• LI.FI: Cross-chain movement detection
+• ENS: Whale identity resolution
 
 Multi-chain whale tracking launching next week!
     `;
@@ -591,27 +608,28 @@ bot.command("help", async (ctx) => {
 
 /start - Welcome message and bot introduction
 /wallet - Create new wallet or view existing one
-/balance - Check your current SOL and USDC balance
+/balance - Check your current ETH and USDC balance
 /deposit - Get deposit instructions with your address
 /track - View list of tracked whale addresses
 /alerts - See recent whale transaction alerts
-/oracle - View current Switchboard oracle prices
+/oracle - View current Chainlink oracle prices
 /asset - View tracked assets with live prices
 /agent - View AI agent performance dashboard
 /help - Show this help message
 
 *About AI Analysis:*
-• Each analysis costs ${MINIMUM_ANALYSIS_COST} SOL
+• Each analysis costs ~0.025 USDC via x402 micropayments
 • Click the "Get AI Analysis" button on any alert
-• Analysis uses Switchboard oracle for verified prices
+• Analysis uses Chainlink oracle for verified prices
 • Agent makes autonomous decisions based on oracle data
+• ENS names resolved for whale identity
 • Requires sufficient wallet balance
 
 *Need Help?*
-This is an MVP running on Solana Devnet.
-All transactions use test SOL (no real value).
+This is an MVP running on Ethereum Sepolia testnet.
+All transactions use test ETH (no real value).
 
-Get devnet SOL: https://faucet.solana.com
+Get Sepolia ETH: https://sepoliafaucet.com
     `;
 
     await ctx.reply(helpMessage, { parse_mode: "Markdown" });
@@ -658,12 +676,12 @@ bot.on("callback_query", async (ctx) => {
         return;
       }
 
-      if (balance < 0.01) {
+      if (balance < 0.001) {
         await ctx.answerCbQuery();
         await ctx.reply(
-          `⚠️ *Low SOL Balance*\n\n` +
-            `You need at least 0.01 SOL for transaction fees.\n` +
-            `Current SOL: ${balance.toFixed(4)} SOL\n\n` +
+          `⚠️ *Low ETH Balance*\n\n` +
+            `You need at least 0.001 ETH for transaction fees.\n` +
+            `Current ETH: ${balance.toFixed(4)} ETH\n\n` +
             `Use /deposit for instructions.`,
           { parse_mode: "Markdown" },
         );
@@ -716,47 +734,47 @@ bot.on("callback_query", async (ctx) => {
 📊 *Executive Summary:*
 ${escapeMarkdown(report.executiveSummary)}
 ${
-  report.oldFaithfulAnalysis
+  report.etherscanAnalysis
     ? `
 ━━━━━━━━━━━━━━━━
-📜 *OLD FAITHFUL HISTORICAL ANALYSIS*
-_Complete Solana History via Old Faithful RPC_
+📜 *ETHERSCAN HISTORICAL ANALYSIS*
+_Complete Ethereum History via Etherscan_
 
 *Historical Pattern:*
-This whale performed ${report.oldFaithfulAnalysis.patterns.totalOccurrences} similar ${whaleAlert.actionType}s before:
-${report.oldFaithfulAnalysis.historicalTransactions
+This whale performed ${report.etherscanAnalysis.patterns.totalOccurrences} similar ${whaleAlert.actionType}s before:
+${report.etherscanAnalysis.historicalTransactions
   .slice(0, 3)
   .map(
     (tx: any) =>
       `• ${tx.month} ${tx.year}: ${tx.priceImpact} in ${tx.timeframe}`,
   )
   .join("\n")}
-Pattern accuracy: ${report.oldFaithfulAnalysis.patterns.patternAccuracy}%
+Pattern accuracy: ${report.etherscanAnalysis.patterns.patternAccuracy}%
 
 *Social Sentiment:*
-Overall: ${escapeMarkdown(report.oldFaithfulAnalysis.sentiment.overall.toUpperCase())} (${report.oldFaithfulAnalysis.sentiment.score}%)
-Twitter: ${escapeMarkdown(report.oldFaithfulAnalysis.sentiment.twitter.mentions.toLocaleString())} mentions
-Reddit: ${report.oldFaithfulAnalysis.sentiment.reddit.posts} posts
-${report.oldFaithfulAnalysis.marketContext.contrarian ? "⚠️ Contrarian signal detected" : "✅ Aligned with market"}
+Overall: ${escapeMarkdown(report.etherscanAnalysis.sentiment.overall.toUpperCase())} (${report.etherscanAnalysis.sentiment.score}%)
+Twitter: ${escapeMarkdown(report.etherscanAnalysis.sentiment.twitter.mentions.toLocaleString())} mentions
+Reddit: ${report.etherscanAnalysis.sentiment.reddit.posts} posts
+${report.etherscanAnalysis.marketContext.contrarian ? "⚠️ Contrarian signal detected" : "✅ Aligned with market"}
 
 *Recommendation:*
-${escapeMarkdown(report.oldFaithfulAnalysis.recommendation.action)}
-Risk: ${escapeMarkdown(report.oldFaithfulAnalysis.recommendation.riskLevel.toUpperCase())}
-Confidence: ${report.oldFaithfulAnalysis.recommendation.confidence}%
+${escapeMarkdown(report.etherscanAnalysis.recommendation.action)}
+Risk: ${escapeMarkdown(report.etherscanAnalysis.recommendation.riskLevel.toUpperCase())}
+Confidence: ${report.etherscanAnalysis.recommendation.confidence}%
 `
     : ""
 }${
           report.oracleData
             ? `
 ━━━━━━━━━━━━━━━━
-📡 *SWITCHBOARD ORACLE DATA*
+📡 *CHAINLINK ORACLE DATA*
 
-Current SOL Price: ${escapeMarkdown("$" + report.oracleData.price.toFixed(2))}
+Current ETH Price: ${escapeMarkdown("$" + report.oracleData.price.toFixed(2))}
 Oracle Confidence: ${escapeMarkdown(report.oracleData.confidence.toFixed(1) + "%")}
 Oracle Nodes: ${report.oracleData.oracleCount} nodes
 USD Impact: ${escapeMarkdown("$" + Math.floor(report.oracleData.usdImpact).toString())}
 Last Updated: ${Math.floor((Date.now() - report.oracleData.timestamp.getTime()) / 1000)}s ago
-Verified by Switchboard Oracle ✅
+Verified by Chainlink Oracle ✅
 `
             : ""
         }
@@ -765,10 +783,10 @@ Verified by Switchboard Oracle ✅
 🎯 *Confidence:* ${report.confidenceScore}%
 
 💡 *Recommendations:*
-${report.recommendations.map((r, i) => `${i + 1}. ${escapeMarkdown(r)}`).join("\n")}
+${report.recommendations.map((r: string, i: number) => `${i + 1}. ${escapeMarkdown(r)}`).join("\n")}
 
 🚦 *Trading Signals:*
-${report.tradingSignals.map((s) => escapeMarkdown(s)).join(", ")}
+${report.tradingSignals.map((s: string) => escapeMarkdown(s)).join(", ")}
 
 ━━━━━━━━━━━━━━━━
 💰 *Cost Breakdown:*
@@ -778,8 +796,8 @@ ${
   report.costBreakdown.apisUsed.length > 0
     ? report.costBreakdown.apisUsed
         .map(
-          (api) =>
-            `• ${escapeMarkdown(api)}: ${report.costBreakdown.costPerAPI[api].toFixed(4)} USDC`,
+          (api: string) =>
+            `• ${escapeMarkdown(api)}: ${(report.costBreakdown.costPerAPI[api] ?? 0).toFixed(4)} USDC`,
         )
         .join("\n")
     : "• None (used free data only)"
@@ -793,7 +811,7 @@ ${
 🤖 *Agent Logs:*
 ${logs
   .slice(-5)
-  .map((log) => escapeMarkdown(log))
+  .map((log: string) => escapeMarkdown(log))
   .join("\n")}
         `;
 
@@ -838,6 +856,8 @@ async function startWhaleMonitoring() {
     `🐋 Starting whale monitoring (interval: ${WHALE_ALERT_INTERVAL}ms)`,
   );
 
+  const ensService = getENSService();
+
   setInterval(async () => {
     try {
       const alert = await generateMockWhaleAlert();
@@ -848,12 +868,18 @@ async function startWhaleMonitoring() {
         (Date.now() - alert.timestamp.getTime()) / 60000,
       );
       const timeStr = timeDiff < 1 ? "Just now" : `${timeDiff} minutes ago`;
-      const value = (alert.amount * 150).toLocaleString(); // Estimated value
+      const value = (alert.amount * 150).toLocaleString();
+
+      // Resolve ENS name for whale address
+      const ensProfile = await ensService.resolveAddress(alert.walletAddress);
+      const ensLabel = ensProfile.ensName
+        ? `\n*ENS:* 🔖 ${ensProfile.ensName}`
+        : "";
 
       const message = `
 🐋 *WHALE ALERT*
 
-*Address:* ${formatAddress(alert.walletAddress)}
+*Address:* ${formatAddress(alert.walletAddress)}${ensLabel}
 *Action:* ${alert.actionType === "deposit" ? "📥 Deposited" : "📤 Withdrew"} ${alert.amount.toLocaleString()} ${alert.token}
 *Exchange:* ${alert.exchange}
 *Time:* ${timeStr}
@@ -889,7 +915,7 @@ Click below to get AI-powered analysis of this transaction!
 
 async function start() {
   try {
-    console.log("🤖 Starting Solana Whale Tracker Bot...");
+    console.log("🤖 Starting Ethereum Whale Tracker Bot...");
     console.log("");
 
     await prisma.$connect();
