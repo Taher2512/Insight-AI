@@ -55,7 +55,7 @@ export async function createWhaleAlert(alert: WhaleAlert) {
     });
 
     console.log(
-      `🐋 Created whale alert: ${alert.actionType} ${alert.amount} ${alert.token}`
+      `🐋 Created whale alert: ${alert.actionType} ${alert.amount} ${alert.token}`,
     );
     return whaleAlert;
   } catch (error) {
@@ -87,7 +87,7 @@ export function getTrackedWhales() {
 
 export async function markAlertAnalyzed(
   alertId: string,
-  userId: string
+  userId: string,
 ): Promise<{
   id: string;
   whaleAlertId: string;
@@ -107,7 +107,7 @@ export async function markAlertAnalyzed(
         whaleAlertId: alertId,
         userId,
         cost: 0.15,
-        report: null,
+        report: undefined,
       },
     });
 
